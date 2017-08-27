@@ -17,13 +17,14 @@ int count_av_color(int x, int y);
 int backgr_check(int num);
 void mouse_callback(int event, int x, int y, int flags, void* userdata);
 bool submit_wires(Point line_begin, Point line_end);
+void clear_wrong_wires(int line_number);
 
 
 int main(int argc, char** argv) {
 
 
-	src = imread("1.jpg", IMREAD_COLOR);
-	src1 = imread("1.jpg", IMREAD_COLOR);
+	src = imread("3.jpg", IMREAD_COLOR);
+	src1 = imread("3.jpg", IMREAD_COLOR);
 	if (src.empty())
 	{
 		cerr << "No image supplied" << endl;
@@ -80,6 +81,10 @@ int main(int argc, char** argv) {
 		{
 			line(src, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(0, 0, 255), 1, CV_AA);
 			line(inpaintMask, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(255, 255, 255), 1, CV_AA);
+
+		}
+		else {
+			lines.erase(lines.begin() + i);
 		}
 	}
 
@@ -88,21 +93,16 @@ int main(int argc, char** argv) {
 	/// A base algorithm, naturally should be called right after backgr_check
 	/*namedWindow("Please submit wires to delete", WINDOW_KEEPRATIO);
 	imshow("Please submit wires to delete", inpaintMask);
-	waitKey(0);
-	setMouseCallback("Please submit wires to delete", mouse_callback, NULL);
-	waitKey(0);
-	for (size_t i = 0; i < lines.size(); i++)
-	{
-		submit_wires(Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]));
-	}*/
+	waitKey(0);*/
 
+	namedWindow("Please_click_on_wrong_wires", WINDOW_KEEPRATIO);
+	imshow("Please_click_on_wrong_wires", src);
+	waitKey(1);
+	imshow("Current_mask", inpaintMask);
+	waitKey(1);
 
+	setMouseCallback("Please_click_on_wrong_wires", mouse_callback, NULL);
 
-
-	namedWindow("Hough", WINDOW_KEEPRATIO);
-	imshow("Hough", src);
-
-	waitKey(0);
 
 	Mat elem = getStructuringElement(MORPH_RECT, Size(2, 2), Point(-1, -1));
 	Mat dilated;
@@ -112,19 +112,34 @@ int main(int argc, char** argv) {
 
 	namedWindow("r", WINDOW_KEEPRATIO);
 	imshow("r", src1);
-
 	waitKey(0);
-
-
-
-
-
-
-
+	
 	return 0;
 }
 
 
+
+void clear_wrong_wires(int line_number){
+	Mat check_img = inpaintMask.clone();
+	Point line_begin(lines[line_number][0], lines[line_number][1]);
+	Point line_end(lines[line_number][2], lines[line_number][3]);
+	LineIterator line_points(mask, line_begin, line_end, 8);
+
+	for (int i = 0; i < line_points.count; i++, ++line_points){
+		if (((mouse_position.x == line_points.pos().x) && (mouse_position.y == line_points.pos().y))	 ||
+			((mouse_position.x == line_points.pos().x + 1) && (mouse_position.y == line_points.pos().y)) ||
+			((mouse_position.x == line_points.pos().x - 1) && (mouse_position.y == line_points.pos().y)) ||
+			((mouse_position.x == line_points.pos().x) && (mouse_position.y == line_points.pos().y + 1)) ||
+			((mouse_position.x == line_points.pos().x) && (mouse_position.y == line_points.pos().y) + 1)) {
+
+			for (int k = 0; k < line_points.count; k++){
+				check_img.at<uchar>(line_points.pos()) = 150;
+			}
+			imshow("Current_mask", inpaintMask);
+			return;
+		}
+	}
+}
 
 int backgr_check(int num)
 {
@@ -159,7 +174,7 @@ int backgr_check(int num)
 int count_av_color(int x, int y)
 {
 	//mask - one line we are working with
-	//Mat init = src = imread("1.jpg", IMREAD_COLOR);
+	//Mat init = src = imread("3.jpg", IMREAD_COLOR);
 
 	Mat elem = getStructuringElement(MORPH_RECT, Size(1, 1), Point(-1, -1));
 	Mat dilated;
@@ -289,6 +304,11 @@ void mouse_callback(int event, int x, int y, int flags, void* userdata) {
 	if (flags == (EVENT_RBUTTONDOWN)) {
 		mouse_position.x = x;
 		mouse_position.y = y;
+
+		for (size_t i = 0; i < lines.size(); i++)
+		{
+			clear_wrong_wires(i);
+		}
 	}
 }
 
