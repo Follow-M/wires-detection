@@ -7,9 +7,10 @@
 using namespace cv;
 using namespace std;
 
-Mat src, src1, mask;
+Mat src, src1, final_image, mask;
 Mat inpaintMask;
 vector<Vec4i> lines;
+vector<Vec4i> wires;
 Point mouse_position;
 
 
@@ -81,6 +82,7 @@ int main(int argc, char** argv) {
 		{
 			line(src, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(0, 0, 255), 1, CV_AA);
 			line(inpaintMask, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(255, 255, 255), 1, CV_AA);
+			wires.push_back(lines[i]);
 
 		}
 		else {
@@ -89,11 +91,6 @@ int main(int argc, char** argv) {
 	}
 
 	//TODO: transform inpaintMask so only approved lines are there
-
-	/// A base algorithm, naturally should be called right after backgr_check
-	/*namedWindow("Please submit wires to delete", WINDOW_KEEPRATIO);
-	imshow("Please submit wires to delete", inpaintMask);
-	waitKey(0);*/
 
 	namedWindow("Please_click_on_wrong_wires", WINDOW_KEEPRATIO);
 	imshow("Please_click_on_wrong_wires", src);
@@ -108,7 +105,8 @@ int main(int argc, char** argv) {
 	Mat dilated;
 	dilate(inpaintMask, dilated, elem);
 
-	inpaint(src1, dilated, src1, 5, INPAINT_TELEA);
+	final_image = Mat::zeros(src1.size(), CV_8UC3);
+	inpaint(src1, dilated, final_image, 5, INPAINT_TELEA);
 
 	namedWindow("r", WINDOW_KEEPRATIO);
 	imshow("r", src1);
@@ -120,10 +118,12 @@ int main(int argc, char** argv) {
 
 
 void clear_wrong_wires(int line_number){
-	Mat check_img = inpaintMask.clone();
-	Point line_begin(lines[line_number][0], lines[line_number][1]);
-	Point line_end(lines[line_number][2], lines[line_number][3]);
-	LineIterator line_points(mask, line_begin, line_end, 8);
+	inpaintMask = Mat::zeros(inpaintMask.size(), CV_8UC1);
+	src = src1.clone();
+	Mat check = src.clone();
+	Point line_begin(wires[line_number][0], wires[line_number][1]);
+	Point line_end(wires[line_number][2], wires[line_number][3]);
+	LineIterator line_points(inpaintMask, line_begin, line_end, 8);
 
 	for (int i = 0; i < line_points.count; i++, ++line_points){
 		if (((mouse_position.x == line_points.pos().x) && (mouse_position.y == line_points.pos().y))	 ||
@@ -132,10 +132,28 @@ void clear_wrong_wires(int line_number){
 			((mouse_position.x == line_points.pos().x) && (mouse_position.y == line_points.pos().y + 1)) ||
 			((mouse_position.x == line_points.pos().x) && (mouse_position.y == line_points.pos().y) + 1)) {
 
-			for (int k = 0; k < line_points.count; k++){
-				check_img.at<uchar>(line_points.pos()) = 150;
+			for (size_t i = 0; i < wires.size(); i++)
+			{
+				line(inpaintMask, Point(wires[i][0], wires[i][1]), Point(wires[i][2], wires[i][3]), Scalar(255, 255, 255), 1, CV_AA);
+				line(src, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(0, 0, 255), 1, CV_AA);
 			}
+			check = src.clone();
+
+			inpaintMask = Mat::zeros(inpaintMask.size(), CV_8UC1);
+			src = src1.clone();
+			check = src.clone();
+			wires.erase(wires.begin() + line_number);
+
+			for (size_t i = 0; i < wires.size(); i++)
+			{
+				line(inpaintMask, Point(wires[i][0], wires[i][1]), Point(wires[i][2], wires[i][3]), Scalar(255, 255, 255), 1, CV_AA);
+				line(src, Point(lines[i][0], lines[i][1]), Point(lines[i][2], lines[i][3]), Scalar(0, 0, 255), 1, CV_AA);
+			}
+			check = src.clone();
+			imshow("Please_click_on_wrong_wires", src);
+			waitKey(1);
 			imshow("Current_mask", inpaintMask);
+			waitKey(1);
 			return;
 		}
 	}
@@ -305,10 +323,20 @@ void mouse_callback(int event, int x, int y, int flags, void* userdata) {
 		mouse_position.x = x;
 		mouse_position.y = y;
 
-		for (size_t i = 0; i < lines.size(); i++)
+		for (size_t i = 0; i < wires.size(); i++)
 		{
 			clear_wrong_wires(i);
 		}
+		final_image = Mat::zeros(src1.size(), CV_8UC3);
+		Mat elem = getStructuringElement(MORPH_RECT, Size(2, 2), Point(-1, -1));
+		Mat dilated;
+		dilate(inpaintMask, dilated, elem);
+
+
+
+		inpaint(src1, dilated, final_image, 5, INPAINT_TELEA);
+		imshow("r", src1);
+		waitKey(1); /// after debug => waitkey(0)
 	}
 }
 
