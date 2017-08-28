@@ -12,6 +12,7 @@ Mat inpaintMask;
 vector<Vec4i> lines;
 vector<Vec4i> wires;
 Point mouse_position;
+String filename;
 
 
 int count_av_color(int x, int y);
@@ -23,9 +24,12 @@ void clear_wrong_wires(int line_number);
 
 int main(int argc, char** argv) {
 
-
-	src = imread("3.jpg", IMREAD_COLOR);
-	src1 = imread("3.jpg", IMREAD_COLOR);
+	if (argc == 2)
+		filename = argv[1];
+	else
+		filename = "3.jpg";
+	src = imread(filename, IMREAD_COLOR);
+	src1 = imread(filename, IMREAD_COLOR);
 	if (src.empty())
 	{
 		cerr << "No image supplied" << endl;
